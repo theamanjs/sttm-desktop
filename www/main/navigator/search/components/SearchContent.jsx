@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useStoreActions, useStoreState } from 'easy-peasy';
 import { ipcRenderer } from 'electron';
+
+import { filter } from 'domutils';
 import banidb from '../../../common/constants/banidb';
-import { filters } from '../../utils';
+import { filters, searchShabads } from '../../utils';
 import { retrieveFilterOption } from '../utils';
 
 import { classNames } from '../../../common/utils';
@@ -17,6 +19,7 @@ import { GurmukhiKeyboard } from './GurmukhiKeyboard';
 import { useNewShabad } from '../hooks/use-new-shabad';
 
 const remote = require('@electron/remote');
+
 const { i18n } = remote.require('./app');
 const analytics = remote.getGlobal('analytics');
 
@@ -33,15 +36,16 @@ const SearchContent = () => {
     currentSearchType,
     shortcuts,
     searchShabadsCount,
-  } = useStoreState(state => state.navigator);
+  } = useStoreState((state) => state.navigator);
   const {
     setCurrentWriter,
     setCurrentRaag,
     setCurrentSource,
     setSearchQuery,
     setShortcuts,
+    setSearchData,
     setSearchShabadsCount,
-  } = useStoreActions(state => state.navigator);
+  } = useStoreActions((state) => state.navigator);
 
   // Local State
   const [databaseProgress, setDatabaseProgress] = useState(1);
@@ -63,22 +67,19 @@ const SearchContent = () => {
     analytics.trackEvent('search', 'gurmukhi-keyboard-open', keyboardOpenStatus);
   };
 
-  const mapVerseItems = searchedShabadsArray => {
-    return searchedShabadsArray
-      ? searchedShabadsArray.map(verse => {
-          return {
-            ang: verse.PageNo,
-            raag: verse.Raag ? verse.Raag.RaagEnglish : '',
-            shabadId: verse.Shabads[0].ShabadID,
-            source: verse.Source ? verse.Source.SourceEnglish : '',
-            sourceId: verse.Source ? verse.Source.SourceID : '',
-            verse: verse.Gurmukhi,
-            verseId: verse.ID,
-            writer: verse.Writer ? verse.Writer.WriterEnglish : '',
-          };
-        })
+  const mapVerseItems = (searchedShabadsArray) =>
+    searchedShabadsArray
+      ? searchedShabadsArray.map((verse) => ({
+          ang: verse.PageNo,
+          raag: verse.Raag ? verse.Raag.RaagEnglish : '',
+          shabadId: verse.Shabads[0].ShabadID,
+          source: verse.Source ? verse.Source.SourceEnglish : '',
+          sourceId: verse.Source ? verse.Source.SourceID : '',
+          verse: verse.Gurmukhi,
+          verseId: verse.ID,
+          writer: verse.Writer ? verse.Writer.WriterEnglish : '',
+        }))
       : [];
-  };
 
   const [filteredShabads, setFilteredShabads] = useState([]);
 
@@ -129,7 +130,7 @@ const SearchContent = () => {
     }
   }, [filteredShabads]);
 
-  ipcRenderer.on('database-progress', data => {
+  ipcRenderer.on('database-progress', (data) => {
     const { percent } = JSON.parse(data);
     setDatabaseProgress(percent);
   });
@@ -147,15 +148,15 @@ const SearchContent = () => {
 
   useEffect(() => {
     const wData = retrieveFilterOption(writersObj, 'writer');
-    wData.then(d => {
+    wData.then((d) => {
       setWriterArray(d);
     });
     const rData = retrieveFilterOption(raagsObj, 'raag');
-    rData.then(d => {
+    rData.then((d) => {
       setRaagArray(d);
     });
     const sData = retrieveFilterOption(sourcesObj, 'source');
-    sData.then(d => {
+    sData.then((d) => {
       setSourceArray(d);
     });
   }, []);
@@ -219,7 +220,7 @@ const SearchContent = () => {
           <span>Filter by </span>
           <FilterDropdown
             title="Writer"
-            onChange={event => {
+            onChange={(event) => {
               setCurrentWriter(event.target.value);
               analytics.trackEvent('search', 'searchWriter', event.target.value);
             }}
@@ -228,7 +229,7 @@ const SearchContent = () => {
           />
           <FilterDropdown
             title="Raag"
-            onChange={event => {
+            onChange={(event) => {
               setCurrentRaag(event.target.value);
               analytics.trackEvent('search', 'searchRaag', event.target.value);
             }}
@@ -237,7 +238,7 @@ const SearchContent = () => {
           />
           <FilterDropdown
             title="Source"
-            onChange={event => {
+            onChange={(event) => {
               setCurrentSource(event.target.value);
               analytics.trackEvent('search', 'searchSource', event.target.value);
             }}
@@ -264,6 +265,36 @@ const SearchContent = () => {
                 writer={writer}
               />
             ),
+          )}
+
+          {filteredShabads.length > 0 && filteredShabads.length < 21 ? (
+            <button
+              className="show-more-btn"
+              onClick={() =>
+                searchShabads(searchQuery, currentSearchType, currentSource, 100).then((rows) =>
+                  searchQuery ? setSearchData(rows) : setSearchData([]),
+                )
+              }
+            >
+              Show More...
+            </button>
+          ) : (
+            ''
+          )}
+
+          {filteredShabads.length > 20 ? (
+            <button
+              className="show-more-btn"
+              onClick={() =>
+                searchShabads(searchQuery, currentSearchType, currentSource, 20).then((rows) =>
+                  searchQuery ? setSearchData(rows) : setSearchData([]),
+                )
+              }
+            >
+              Show Less...
+            </button>
+          ) : (
+            ''
           )}
         </div>
       </div>

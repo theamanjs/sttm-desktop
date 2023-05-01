@@ -278,3 +278,9 @@
   transition: all $transition-time $transition-easing;
   width: 10px;
 }
+.show-more-btn {
+  background: transparent;
+  color: #e1802f;
+  margin: 5px;
+  cursor: pointer;
+}
